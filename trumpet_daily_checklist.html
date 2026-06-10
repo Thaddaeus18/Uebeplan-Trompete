@@ -1,0 +1,209 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+.root { padding: 1rem 0 1.5rem; }
+
+.top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.top-title { font-size: 16px; font-weight: 500; color: var(--color-text-primary); }
+.top-date { font-size: 12px; color: var(--color-text-secondary); }
+
+.progress-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.progress-track { flex: 1; height: 4px; background: var(--color-border-tertiary); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 2px; background: #1D9E75; transition: width 0.3s ease; }
+.progress-label { font-size: 12px; color: var(--color-text-secondary); min-width: 36px; text-align: right; }
+
+.block { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); margin-bottom: 8px; overflow: hidden; }
+.block-head { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.d-teal { background: #1D9E75; }
+.d-purple { background: #7F77DD; }
+.d-amber { background: #EF9F27; }
+.d-coral { background: #D85A30; }
+.bh-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); flex: 1; }
+.bh-time { font-size: 11px; color: var(--color-text-secondary); }
+.bh-count { font-size: 11px; color: var(--color-text-tertiary); margin-left: 6px; }
+
+.item-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 14px; border-bottom: 0.5px solid var(--color-border-tertiary); cursor: pointer; transition: background 0.15s; user-select: none; }
+.item-row:last-child { border-bottom: none; }
+.item-row:hover { background: var(--color-background-secondary); }
+.item-row.done { opacity: 0.5; }
+.item-row.done .item-name { text-decoration: line-through; }
+
+.cb { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--color-border-secondary); flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; transition: background 0.15s, border-color 0.15s; }
+.cb.checked { background: #1D9E75; border-color: #1D9E75; }
+.cb.checked::after { content: ''; display: block; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translate(1px, -1px); }
+
+.item-body { flex: 1; }
+.item-name { font-size: 13px; color: var(--color-text-primary); line-height: 1.4; }
+.item-sub { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+
+.actions { display: flex; gap: 8px; margin-top: 14px; }
+.btn { flex: 1; padding: 9px 14px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-primary); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: var(--font-sans); }
+.btn:hover { background: var(--color-background-secondary); }
+.btn:active { transform: scale(0.98); }
+.btn-reset { color: #D85A30; border-color: #F0997B; }
+.btn-reset:hover { background: #FAECE7; }
+.btn-notion { color: #1D9E75; border-color: #5DCAA5; }
+.btn-notion:hover { background: #E1F5EE; }
+@media (prefers-color-scheme: dark) {
+  .btn-reset:hover { background: #4A1B0C; }
+  .btn-notion:hover { background: #04342C; }
+}
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--color-background-primary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 8px 16px; font-size: 13px; color: var(--color-text-primary); opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none; white-space: nowrap; z-index: 100; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+
+<div class="root">
+  <h2 class="sr-only">Tägliches Trompeten-Übungs-Clipboard mit Abhak-Funktion</h2>
+
+  <div class="top-bar">
+    <span class="top-title">Tägliches Übungs-Clipboard</span>
+    <span class="top-date" id="dateLabel"></span>
+  </div>
+
+  <div class="progress-row">
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <span class="progress-label" id="progressLabel">0 / 11</span>
+  </div>
+
+  <div id="blocksRoot"></div>
+
+  <div class="actions">
+    <button class="btn btn-reset" onclick="resetAll()"><i class="ti ti-refresh" aria-hidden="true"></i> Tages-Reset</button>
+    <button class="btn btn-notion" onclick="copyNotion()"><i class="ti ti-copy" aria-hidden="true"></i> In Notion kopieren</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BLOCKS = [
+  {
+    id: 'b1', label: 'Einspielen', time: '~20 min', dot: 'd-teal',
+    items: [
+      { id: 'i1', name: 'Atemübungen', sub: 'Stamp, Ellenson/Moschberger' },
+      { id: 'i2', name: 'Buzzing & Mundstückübungen', sub: 'Stamp, Ellenson/Moschberger' },
+      { id: 'i3', name: 'Flowstudies, Long Notes, Flatterzunge', sub: 'Stamp, Arban' },
+    ]
+  },
+  {
+    id: 'b2', label: 'Technik', time: '~35 min', dot: 'd-purple',
+    items: [
+      { id: 'i4', name: 'Flexibility / Lipslurs', sub: 'Collin, Arban, Irons' },
+      { id: 'i5', name: 'Tonleitern & Arpeggios', sub: 'Arban, Clarke · Quintenzirkel' },
+      { id: 'i6', name: 'Fingertechnik', sub: 'Clarke, Arban' },
+      { id: 'i7', name: 'Zungentechnik – Doppel- & Triolenzunge', sub: 'Arban' },
+      { id: 'i8', name: 'Transponieren', sub: 'Arban · wöchentlicher Tonartwechsel' },
+    ]
+  },
+  {
+    id: 'b3', label: 'Höhe, Ausdauer & Etüden', time: '~30 min', dot: 'd-amber',
+    items: [
+      { id: 'i9',  name: 'Höhe & Ausdauer', sub: 'Collin, Irons, Schlossberg' },
+      { id: 'i10', name: 'Etüden', sub: 'Charlier / Brandt – tägl. abwechseln' },
+      { id: 'i11', name: 'Blattspiel', sub: 'Arban, Orchesterstellen – unvorbereitet' },
+      { id: 'i12', name: 'Gehörbildung', sub: 'Intervalle, Rhythmus, Intonation – App / eigenständig' },
+    ]
+  },
+  {
+    id: 'b4', label: 'Repertoire & Konzertstücke', time: '~25 min', dot: 'd-coral',
+    items: [
+      { id: 'i13', name: 'Konzertwerke', sub: 'aktuelles Programm – erarbeiten / ausarbeiten' },
+      { id: 'i14', name: 'Orchesterstellen', sub: 'Edition Peters – aufnahmerelevante Stellen' },
+    ]
+  }
+];
+
+const TOTAL = BLOCKS.reduce((s,b) => s + b.items.length, 0);
+let checked = {};
+
+function save() { try { localStorage.setItem('tp_checked', JSON.stringify(checked)); } catch(e){} }
+function load() { try { const d = localStorage.getItem('tp_checked'); if(d) checked = JSON.parse(d); } catch(e){} }
+
+function updateProgress() {
+  const done = Object.values(checked).filter(Boolean).length;
+  const pct = Math.round(done / TOTAL * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = done + ' / ' + TOTAL;
+  BLOCKS.forEach(b => {
+    const cnt = b.items.filter(i => checked[i.id]).length;
+    const el = document.getElementById('count-' + b.id);
+    if(el) el.textContent = cnt === b.items.length ? '✓' : cnt + '/' + b.items.length;
+  });
+}
+
+function toggle(id) {
+  checked[id] = !checked[id];
+  const row = document.getElementById('row-' + id);
+  const cb = document.getElementById('cb-' + id);
+  if(checked[id]) { row.classList.add('done'); cb.classList.add('checked'); }
+  else { row.classList.remove('done'); cb.classList.remove('checked'); }
+  save(); updateProgress();
+}
+
+function resetAll() {
+  checked = {};
+  document.querySelectorAll('.item-row').forEach(r => r.classList.remove('done'));
+  document.querySelectorAll('.cb').forEach(c => c.classList.remove('checked'));
+  save(); updateProgress();
+  showToast('Reset – neuer Tag, viel Erfolg 🎺');
+}
+
+function copyNotion() {
+  const today = new Date().toLocaleDateString('de-DE', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  let lines = ['# Übungs-Clipboard – ' + today, ''];
+  BLOCKS.forEach(b => {
+    lines.push('## ' + b.label + ' (' + b.time + ')');
+    b.items.forEach(i => {
+      const tick = checked[i.id] ? '[x]' : '[ ]';
+      lines.push('- ' + tick + ' **' + i.name + '** – ' + i.sub);
+    });
+    lines.push('');
+  });
+  const done = Object.values(checked).filter(Boolean).length;
+  lines.push('---');
+  lines.push('Fortschritt: ' + done + ' / ' + TOTAL + ' erledigt');
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    showToast('In Zwischenablage kopiert – in Notion einfügen mit ⌘V');
+  }).catch(() => showToast('Kopieren fehlgeschlagen – bitte manuell kopieren'));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function render() {
+  load();
+  const now = new Date();
+  document.getElementById('dateLabel').textContent = now.toLocaleDateString('de-DE', { weekday:'long', day:'numeric', month:'long' });
+  const root = document.getElementById('blocksRoot');
+  root.innerHTML = '';
+  BLOCKS.forEach(b => {
+    const div = document.createElement('div');
+    div.className = 'block';
+    let html = '<div class="block-head">';
+    html += '<span class="dot ' + b.dot + '"></span>';
+    html += '<span class="bh-title">' + b.label + '</span>';
+    html += '<span class="bh-time">' + b.time + '</span>';
+    html += '<span class="bh-count" id="count-' + b.id + '">0/' + b.items.length + '</span>';
+    html += '</div>';
+    b.items.forEach(i => {
+      const isDone = checked[i.id];
+      html += '<div class="item-row' + (isDone ? ' done' : '') + '" id="row-' + i.id + '" onclick="toggle(\'' + i.id + '\')" role="checkbox" aria-checked="' + !!isDone + '" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key==\' \')toggle(\'' + i.id + '\')">';
+      html += '<div class="cb' + (isDone ? ' checked' : '') + '" id="cb-' + i.id + '"></div>';
+      html += '<div class="item-body"><div class="item-name">' + i.name + '</div><div class="item-sub">' + i.sub + '</div></div>';
+      html += '</div>';
+    });
+    div.innerHTML = html;
+    root.appendChild(div);
+  });
+  updateProgress();
+}
+
+render();
+</script>
